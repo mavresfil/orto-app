@@ -11,7 +11,7 @@ const CORS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 const NOMI_RUOLO: Record<string, string> = { gestore: 'gestore', membro: 'membro', lettore: 'sola lettura' };
-const APP = 'https://marcofilini97-jpg.github.io/orto-app/';
+const APP = 'https://mavresfil.github.io/orto-app/';
 // Il nome dell'orto lo scrive l'utente: nell'HTML dell'email va "disinnescato"
 const sicuro = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 
