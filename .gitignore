@@ -1,0 +1,17 @@
+# Materiale della revisione di sicurezza (definizioni del database): mai pubblicare
+audit/
+
+# Segreti e chiavi: non devono mai finire nel repository (che è pubblico)
+.env
+.env.*
+supabase/.env
+supabase/.temp/
+*.pem
+*.key
+*.p12
+*.pfx
+
+# File del sistema e registri
+.DS_Store
+Thumbs.db
+*.log
