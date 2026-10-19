@@ -156,7 +156,13 @@ function inPercentuale(el, b, t) {
 
 // Disegno SVG della forma dell'aiuola, grande quanto il suo ingombro.
 // divisa: 'fondo-davanti' | 'sinistra-destra' | null (riga tratteggiata). scelta: null, 'intera' o una metà (terra arata)
-function sagomaAiuola(a, { divisa = null, scelta = null, tinta = null } = {}) {
+function sagomaAiuola(aiuola, { divisa = null, scelta = null, tinta = null } = {}) {
+  // I dati possono arrivare dal server (scritti da un'altra persona): ciò che finisce nell'SVG è solo numeri veri
+  const num = v => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  const a = {
+    ...aiuola, x: num(aiuola.x), y: num(aiuola.y), w: num(aiuola.w), h: num(aiuola.h), rot: num(aiuola.rot),
+    taglio: aiuola.taglio && { ...aiuola.taglio, w: num(aiuola.taglio.w), h: num(aiuola.taglio.h) },
+  };
   const b = ingombro(a);
   const n = ++numeroSvg;
   const giro = `translate(${a.x} ${a.y}) rotate(${a.rot ?? 0})`;

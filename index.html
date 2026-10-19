@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#3f6b2e">
+  <!-- Content-Security-Policy: l'app esegue solo i propri script e parla solo con Supabase e Open-Meteo.
+       Se si aggiunge un altro servizio esterno va aggiunto qui (connect-src). -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://mmjbkxznbjazhakbxdmg.supabase.co https://api.open-meteo.com https://archive-api.open-meteo.com; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
   <title>Orto</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icone/icona-192.png">

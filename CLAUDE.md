@@ -272,6 +272,7 @@ Un unico oggetto JSON, che è anche il formato del file di backup:
 
 ## Idee per il futuro
 - Grafica più accattivante in stile cartone animato: disegni stilizzati delle colture sulla mappa e nelle aiuole (es. carote disegnate nell'aiuola dove sono piantate le carote)
+- Mini-mappa dei moduli (es. "Aggiungi coltura"): se le aiuole sporgono oltre la staccionata coprono i campi sotto (la mappa principale va bene così). Idea: zoom avanti/indietro con due dita e, tenendo premuto sulla mini-mappa, spostarsi a sinistra e a destra
 - Ordine concordato: prima pubblicazione su GitHub Pages (senza offline), poi grafica provata sul telefono, per ultimo offline e installazione
 
 ## Regole di lavoro

@@ -81,6 +81,33 @@ export function normalizza(dati) {
       x.parti[id] = parte === 'vialetto' ? versoVialetto : versoVialetto === 'destra' ? 'sinistra' : 'destra';
     }
   }
+  // I dati possono arrivare dal server (scritti da un'altra persona): misure e posizioni devono essere numeri veri
+  const num = v => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  const numeri = (oggetto, chiavi) => {
+    if (!oggetto || typeof oggetto !== 'object') return;
+    for (const k of chiavi) if (k in oggetto) oggetto[k] = num(oggetto[k]);
+  };
+  // Date: AAAA-MM-GG vere. Quelle facoltative non valide diventano null; quelle obbligatorie, la data di oggi
+  const dataVera = s => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s));
+  const oggiIso = new Date().toISOString().slice(0, 10);
+  const date = (oggetto, obbligatorie, facoltative) => {
+    if (!oggetto || typeof oggetto !== 'object') return;
+    for (const k of obbligatorie) if (k in oggetto && !dataVera(oggetto[k])) oggetto[k] = oggiIso;
+    for (const k of facoltative) if (oggetto[k] != null && !dataVera(oggetto[k])) oggetto[k] = null;
+  };
+  for (const c of dati.colture) date(c, ['dataInizio'], ['dataFine']);
+  for (const r of dati.registro) date(r, ['data'], ['dal']);
+  for (const t of dati.task) date(t, [], ['scadenza', 'fattoIl']);
+  for (const a of dati.aiuole) {
+    numeri(a, ['x', 'y', 'w', 'h', 'rot', 'settore']);
+    numeri(a?.taglio, ['w', 'h']);
+  }
+  for (const v of dati.vialetti) numeri(v, ['x', 'y', 'w', 'h', 'rot']);
+  for (const al of dati.alberi) numeri(al, ['x', 'y', 'diametro', 'altezza']);
+  for (const t of dati.terreno) {
+    numeri(t, ['larghezza', 'lunghezza']);
+    if (t.esposizione != null && !Number.isFinite(t.esposizione)) t.esposizione = null;
+  }
   return dati;
 }
 
@@ -332,6 +359,9 @@ function registraModifiche(prima, dopo) {
 // Applica una riga del server ai dati del telefono
 function applica(dati, riga) {
   const lista = dati[GRUPPO[riga.tipo]];
+  if (!lista) return;
+  // Una riga che non ha la forma di un elemento (oggetto con il suo id) si scarta: l'ha scritta un client non nostro
+  if (!riga.eliminato && (!riga.dati || typeof riga.dati !== 'object' || Array.isArray(riga.dati) || riga.dati.id !== riga.id)) return;
   const i = lista.findIndex(e => e.id === riga.id);
   if (riga.eliminato) {
     if (i >= 0) lista.splice(i, 1);
@@ -592,7 +622,8 @@ export function statoSincronizzazione() {
 // Ogni conversione passa da queste funzioni.
 
 export function dataPerUtente(iso) {          // '2026-06-12' → '12/06/2026'
-  if (!iso) return '';
+  // Solo date vere: il valore finisce dentro un campo del modulo, mai testo qualunque
+  if (typeof iso !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return '';
   const [a, m, g] = iso.split('-');
   return `${g}/${m}/${a}`;
 }
