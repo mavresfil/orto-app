@@ -22,6 +22,22 @@ const quando = (iso: string, oggi: string) => {
 };
 const senzaAccenti = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
+// Le iscrizioni le scrivono gli utenti: la funzione manda richieste solo ai servizi di notifiche veri (come il controllo del database)
+const SERVIZI_NOTIFICHE = [/^fcm\.googleapis\.com$/, /^updates\.push\.services\.mozilla\.com$/, /^web\.push\.apple\.com$/, /^([a-z0-9-]+\.)+notify\.windows\.com$/];
+const endpointAmmesso = (endpoint: unknown) => {
+  try {
+    const u = new URL(String(endpoint));
+    return u.protocol === 'https:' && !u.username && !u.password && SERVIZI_NOTIFICHE.some(r => r.test(u.hostname));
+  } catch {
+    return false;
+  }
+};
+// Un invio: indirizzo controllato e al massimo 10 secondi di attesa, così un servizio lento non blocca gli altri
+const invia = (iscrizione: { endpoint: string }, testo: string) => {
+  if (!endpointAmmesso(iscrizione?.endpoint)) return Promise.reject(Object.assign(new Error('indirizzo non ammesso'), { statusCode: 410 }));
+  return webpush.sendNotification(iscrizione as never, testo, { timeout: 10000 });
+};
+
 type Giorno = { d: string; massima: number; minima: number; pioggia: number };
 type Avviso = { chiave: string; titolo: string; testo: string };
 
@@ -70,15 +86,15 @@ Deno.serve(async richiesta => {
     // Controllo delle chiavi (senza mostrarle): la pubblica è lunga 87 caratteri, la privata 43
     const pub = Deno.env.get('VAPID_PUBLIC_KEY') ?? '', priv = Deno.env.get('VAPID_PRIVATE_KEY') ?? '';
     const chiavi = { pubblica: pub.length, privata: priv.length, pubblicaComeNellApp: pub.startsWith('BCAFSaWf9DSd') && pub.endsWith('t4XfdOM') };
-    for (const t of data ?? []) {
+    await Promise.all((data ?? []).map(async t => {
       try {
-        await webpush.sendNotification(t.dati, JSON.stringify({ titolo: 'Orto: notifica di prova', testo: 'Le notifiche funzionano!', chiave: 'prova' }));
+        await invia(t.dati, JSON.stringify({ titolo: 'Orto: notifica di prova', testo: 'Le notifiche funzionano!', chiave: 'prova' }));
         ok++;
       } catch (e) {
         const err = e as { statusCode?: number; body?: string; message?: string };
         errori.push(`${err.statusCode ?? ''} ${err.body ?? err.message ?? e}`.trim().slice(0, 300));
       }
-    }
+    }));
     return new Response(JSON.stringify({ prova: true, iscritti: data?.length ?? 0, mandate: ok, chiavi, errori }, null, 2), { headers: { 'Content-Type': 'application/json' } });
   }
 
@@ -90,10 +106,14 @@ Deno.serve(async richiesta => {
   const oggi = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Rome' }).format(new Date());
 
   // Telefoni iscritti, raggruppati per orto
-  const { data: iscrizioni, error } = await supabase.from('iscrizioni_notifiche').select('id, orto_id, endpoint, dati');
+  const { data: iscrizioni, error } = await supabase.from('iscrizioni_notifiche').select('id, orto_id, email, endpoint, dati');
   if (error) return new Response(error.message, { status: 500 });
+  // Solo chi fa ancora parte dell'orto: chi è uscito o è stato tolto non riceve più gli avvisi
+  const { data: persone, error: errPersone } = await supabase.from('persone').select('orto_id, email');
+  if (errPersone) return new Response(errPersone.message, { status: 500 });
+  const dentro = new Set((persone ?? []).map(p => `${p.orto_id}|${p.email}`));
   const perOrto = new Map<string, typeof iscrizioni>();
-  for (const s of iscrizioni ?? []) perOrto.set(s.orto_id, [...(perOrto.get(s.orto_id) ?? []), s]);
+  for (const s of (iscrizioni ?? []).filter(s => dentro.has(`${s.orto_id}|${s.email}`))) perOrto.set(s.orto_id, [...(perOrto.get(s.orto_id) ?? []), s]);
 
   let mandate = 0;
   for (const [ortoId, telefoni] of perOrto) {
@@ -107,17 +127,17 @@ Deno.serve(async richiesta => {
       // Già mandato? (la chiave contiene il giorno)
       const { error: doppio } = await supabase.from('avvisi_inviati').insert({ orto_id: ortoId, chiave: a.chiave });
       if (doppio) continue;
-      for (const t of telefoni!) {
+      await Promise.all(telefoni!.map(async t => {
         try {
-          await webpush.sendNotification(t.dati, JSON.stringify({ titolo: a.titolo, testo: a.testo, chiave: a.chiave, url: './#/orto/meteo' }));
+          await invia(t.dati, JSON.stringify({ titolo: a.titolo, testo: a.testo, chiave: a.chiave, url: './#/orto/meteo' }));
           mandate++;
         } catch (e) {
-          // Iscrizione scaduta o tolta dal telefono: si cancella
+          // Iscrizione scaduta o tolta dal telefono (o con un indirizzo non ammesso): si cancella
           if ((e as { statusCode?: number }).statusCode === 404 || (e as { statusCode?: number }).statusCode === 410) {
             await supabase.from('iscrizioni_notifiche').delete().eq('id', t.id);
           }
         }
-      }
+      }));
     }
   }
   return new Response(JSON.stringify({ oggi, orti: perOrto.size, mandate }), { headers: { 'Content-Type': 'application/json' } });
