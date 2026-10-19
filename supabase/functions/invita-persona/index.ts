@@ -31,6 +31,9 @@ Deno.serve(async richiesta => {
     const { data: persone } = await utente.rpc('persone_orto', { o: ortoId });
     const persona = (persone ?? []).find((p: { email: string }) => p.email === email);
     if (!persona) return risposta({ errore: 'Questa email non fa parte dell\'orto: aggiungila prima.' }, 400);
+    // Limite di inviti per gestore nelle ultime 24 ore (lo conta il database: registra_invito)
+    const { error: limite } = await utente.rpc('registra_invito', { o: ortoId, destinatario: email });
+    if (limite) return risposta({ errore: limite.message }, 429);
     const { data: orti } = await utente.rpc('miei_orti');
     const orto = (orti ?? []).find((o: { id: string }) => o.id === ortoId);
     const { data: chi } = await utente.auth.getUser();
