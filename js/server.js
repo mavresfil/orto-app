@@ -84,13 +84,16 @@ export async function cambiaPassword(password) {
 }
 
 // Chi apre il link dell'email arriva con l'accesso nell'indirizzo (#access_token=…&type=signup|recovery).
-// Salva l'accesso e restituisce il tipo di link, oppure null se l'indirizzo è normale
-export async function accessoDaLink() {
+// Salva l'accesso e restituisce il tipo di link, oppure null se l'indirizzo è normale.
+// conferma(emailDelLink, tipo, emailAttuale) decide se accettarlo: un link con l'accesso di un altro account
+// non deve collegare il telefono senza che la persona se ne accorga (restituisce 'annullato' se dice no)
+export async function accessoDaLink(conferma) {
   const parti = new URLSearchParams(location.hash.slice(1));
   if (parti.get('error_description')) throw new Error(`Link non valido o scaduto: ${parti.get('error_description')}`);
   if (!parti.get('access_token')) return null;
   const accesso = parti.get('access_token');
   const utente = await chiedi('/auth/v1/user', { headers: { Authorization: `Bearer ${accesso}` } });
+  if (conferma && !conferma(utente.email, parti.get('type') ?? 'accesso', emailCollegata())) return 'annullato';
   localStorage.setItem(CHIAVE_SESSIONE, JSON.stringify({
     email: utente.email,
     accesso,

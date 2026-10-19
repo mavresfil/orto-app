@@ -160,12 +160,26 @@ try {
   // dati danneggiati: se ne occupa la schermata (messaggio di errore)
 }
 
+// Prima di accettare un link con l'accesso nell'indirizzo si chiede a chi appartiene: chiunque può costruirne
+// uno con il proprio account e farlo aprire a un'altra persona. Se il telefono è già collegato a quell'email non si chiede
+function confermaLink(emailLink, tipo, emailAttuale) {
+  if (emailAttuale && emailAttuale.toLowerCase() === String(emailLink).toLowerCase() && tipo !== 'recovery') return true;
+  const cosa = tipo === 'recovery' ? `Scegliere una nuova password per l'account ${emailLink}?` : `Collegare questo telefono all'account ${emailLink}?`;
+  const cambio = emailAttuale && emailAttuale.toLowerCase() !== String(emailLink).toLowerCase()
+    ? `\n\nOra il telefono è collegato a ${emailAttuale}: verrebbe sostituito.` : '';
+  return confirm(`${cosa}${cambio}\n\nPremi OK solo se hai appena aperto questo link dall'email che ti è arrivata. Se qualcuno te l'ha mandato in un altro modo, premi Annulla.`);
+}
+
 // Link dell'email di Supabase (conferma dell'iscrizione o nuova password): l'accesso arriva nell'indirizzo
 async function linkDellEmail() {
   try {
-    const tipo = await accessoDaLink();
+    const tipo = await accessoDaLink(confermaLink);
     if (!tipo) return;
     history.replaceState(null, '', location.pathname);
+    if (tipo === 'annullato') {
+      location.replace('#/impostazioni');
+      return;
+    }
     if (tipo === 'recovery') {
       location.replace('#/nuova-password');
       return;
