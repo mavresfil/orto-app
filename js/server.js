@@ -139,7 +139,7 @@ export async function rinominaOrtoServer(ortoId, nome) {
   });
 }
 
-// Le persone dell'orto: [{ email, ruolo, iscritta }]
+// Le persone dell'orto: [{ email, ruolo }] (se un'email ha già un account lo sa solo la funzione del server che manda l'invito)
 export async function personeOrto(ortoId) {
   return chiedi('/rest/v1/rpc/persone_orto', { method: 'POST', headers: await intestazioneAccesso(), body: JSON.stringify({ o: ortoId }) });
 }

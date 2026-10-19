@@ -3643,7 +3643,7 @@ export function paginaPersone() {
       for (const p of persone) {
         const voce = elemento('div', '', 'voce-persona');
         const testo = elemento('span');
-        testo.append(elemento('strong', p.email), elemento('small', p.email === mia ? 'tu' : p.iscritta ? 'iscritta' : 'non ancora iscritta: entrerà iscrivendosi con questa email'));
+        testo.append(elemento('strong', p.email), elemento('small', p.email === mia ? 'tu' : ''));
         voce.append(testo);
         if (gestore) {
           const ruolo = sceltaRuolo(p.ruolo);

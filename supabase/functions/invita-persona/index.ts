@@ -34,6 +34,10 @@ Deno.serve(async richiesta => {
     // Limite di inviti per gestore nelle ultime 24 ore (lo conta il database: registra_invito)
     const { error: limite } = await utente.rpc('registra_invito', { o: ortoId, destinatario: email });
     if (limite) return risposta({ errore: limite.message }, 429);
+    // Se l'email ha già un account lo sa solo il server (funzione chiamabile solo con la chiave di servizio): serve
+    // a scegliere il testo dell'email e non va mai restituito a chi chiama, altrimenti si potrebbe scoprire chi è iscritto
+    const server = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    const { data: iscritta } = await server.rpc('email_registrata', { e: email });
     const { data: orti } = await utente.rpc('miei_orti');
     const orto = (orti ?? []).find((o: { id: string }) => o.id === ortoId);
     const { data: chi } = await utente.auth.getUser();
@@ -41,7 +45,7 @@ Deno.serve(async richiesta => {
 
     const nomeOrto = sicuro(orto?.nome ?? 'un orto');
     const ruoloTesto = NOMI_RUOLO[persona.ruolo] ?? persona.ruolo;
-    const istruzioni = persona.iscritta
+    const istruzioni = iscritta === true
       ? `<p>Apri l'app <b>Orto</b>: lo trovi in <b>I miei orti</b> (tocca il nome dell'orto in alto, nella barra verde).</p>`
       : `<p>Per entrare:</p><ol><li>apri l'app <b>Orto</b> (link qui sotto);</li><li>vai in <b>Impostazioni</b> → <b>Iscriviti</b> con questa email (${sicuro(email)});</li><li>conferma l'iscrizione con il link che ti arriverà;</li><li>troverai l'orto in <b>I miei orti</b>.</li></ol>`;
     const html = `<div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #2a1e12;">
@@ -65,7 +69,7 @@ Deno.serve(async richiesta => {
       }),
     });
     if (!r.ok) return risposta({ errore: `L'email non è partita (Brevo ${r.status}): ${(await r.text()).slice(0, 200)}` }, 502);
-    return risposta({ ok: true, iscritta: persona.iscritta });
+    return risposta({ ok: true });
   } catch (e) {
     return risposta({ errore: String(e) }, 500);
   }
